@@ -1,4 +1,5 @@
 #include "Solenoid.hpp"
+#include "PWMMotorController.hpp"
 
 // Initialize the dispenser on pin 13
 Solenoid dispenserStopper (13);
