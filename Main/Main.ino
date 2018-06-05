@@ -6,22 +6,26 @@
 // --- Ports ---
 // Buttons
 int startButtonPort = 40;
+int rotateInSwitchPort = 46;
 
 // Servos
-int spatulaPort = 6;
+int spatulaPort = 26;
 
 // Solenoids
-int dispenserPort = 36;
+int dispenserPort = 32;
 int extenderPort = 34;
-int rotatorPort = 32;
-int lifterPort = 30;
+int lifterPort = 36;
 
 // Speed Controllers
 int batterMixerPort = 5;
+int rotatorPort = 6;
 
 // --- Objects ---
 // The button that triggers the pancake making process
-Button startButton (startButtonPort); // change pin
+Button startButton (startButtonPort);
+
+// The limit switch which hits when rotated in
+Button inRotationSwitch (rotateInSwitchPort);
 
 // The piston that dispenses the batter onto the pan
 Solenoid dispenser (dispenserPort);
@@ -29,24 +33,27 @@ Solenoid dispenser (dispenserPort);
 // The piston that extends the arm into the pancake
 Solenoid extender (extenderPort);
 
-// The piston that rotates the arm for serving in the end
-Solenoid rotator (rotatorPort);
-
 // Lifts the arm
-Solenoid lifter (lifterPort); // change pin
+Solenoid lifter (lifterPort);
 
 // Motor that mixes the batter throughout the run time
 PWMMotorController batterMixer (batterMixerPort);
+
+// Controls the rotation of the arm
+PWMMotorController rotationMotor (rotatorPort);
 
 // The spatula that rotates to flip the pancake
 Servo spatula;
 
 void setup() {
-  // DOES THE MIXER NEED A SPEED CONTROLLER?
   // Mix the batter throughout the process
-  batterMixer.set(0.5);
+  batterMixer.set(0.2);
+  // Make sure the motor is off
+  rotationMotor.set(0);
   // Attach the servo representing the arm
   spatula.attach(spatulaPort);
+  spatula.write(0);
+  Serial.begin(9600);
 }
 
 void loop() {
@@ -56,56 +63,55 @@ void loop() {
     delay (100);
   }
 
-  // Assumes that system is currently in reset position
-  // (In reset position arm is extended and rotated in, down, and flat)
-  // End of loop returns to reset position, and default (all ports get LOW) is reset position
-
-  // Adds batter onto the machine
   addBatter();
+
+  delay (3000);
+
+  extender.forward();
+  delay (2000);
+
+  lifter.forward();
+  delay (4000);
+
+  rotateIn();
+
+  extender.reverse();
+  spatula.write(180);
+
+  delay (2000);
+  spatula.write(0);
   
+  rotateIn();
 
-  // Wait for first side to be ready
-  delay (10000);
-  
+  lifter.reverse();
+  delay (3000);
 
-  // Extend out to go under the pancake
-  extendOut();
-  // Lift the pancake up
-  extendUp();
-  
-  // Flip the pancake
-  spatulaDown();
-  // Reset the spatula position
-  spatulaUp();
-  
-  // Bring the arm back in
-  extendIn();
-  // Bring the arm back down
-  extendDown();
+  delay (3000);
 
+  extender.forward();
+  delay (2000);
 
-  // Wait for other side to be ready
-  delay(10000);
+  lifter.forward();
+  delay (3000);
 
-
-  // Extend out to go under the pancake
-  extendOut();
-  // Lift the pancake up
-  extendUp();
-
-  // Rotate the arm out above the plate
   rotateOut();
   
-  // Drop the pancake onto the plate
-  spatulaDown();
-  // Reset the spatula position
-  spatulaUp();
+  spatula.write(180);
+  delay (2000);
+  spatula.write(0);
 
-  
-  // Go back to reset position
-  extendIn();
   rotateIn();
-  extendDown();
+
+  extender.reverse();
+  delay (2000);
+
+  rotateIn();
+
+  lifter.reverse();
+  delay (3000);
+
+  rotateIn();
+  
   
 }
 
@@ -116,67 +122,21 @@ void addBatter (){
   dispenser.reverse();
 }
 
-// Rotates the arm out
-void rotateOut(){
-  if (rotator.isReverse()){
-    rotator.forward();
-    delay(3000);
-  }
-}
-
-// Rotates the arm in
 void rotateIn(){
-  if (rotator.isForward()){
-    rotator.reverse();
-    delay(3000);
+  bool switchReached = (!inRotationSwitch.isPushed()); // Wired opposite
+  Serial.println(switchReached);
+  while (!switchReached){
+    rotationMotor.set(0.2);
+    switchReached = (!inRotationSwitch.isPushed()); // Wired opposite
+    Serial.println(switchReached);
+    delay (50);
   }
+  rotationMotor.set(0);
 }
 
-// Extends the arm out
-void extendOut(){
-  if (extender.isReverse()){
-    extender.forward();
-    delay (1000);
-  }
-}
-
-// Extends the arm in
-void extendIn(){
-  if (extender.isForward()){
-    extender.reverse();
-    delay (1000);
-  }
-}
-
-// Extends the arm down
-void extendDown(){
-  if (lifter.isReverse()){
-    lifter.forward();
-    delay (1000);
-  }
-}
-
-// Extends the arm up
-void extendUp(){
-  if (lifter.isForward()){
-    lifter.reverse();
-    delay (1000);
-  }
-}
-
-// Rotates the spatula so that it is right side up
-void spatulaUp(){
-  if (spatula.read() != 0){
-    spatula.write(0);
-    delay (2000);
-  }
-}
-
-// Rotates the spatula so that it is right side down
-void spatulaDown (){
-  if (spatula.read() != 180){
-    spatula.write(180);
-    delay (2000);
-  }
+void rotateOut(){
+  rotationMotor.set(-0.2);
+  delay (2300);
+  rotationMotor.set(0);
 }
 
